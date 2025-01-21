@@ -1,32 +1,21 @@
 from flask import Flask, jsonify, request
-from flask_sockets import Sockets
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
-sockets = Sockets(app)
+socketio = SocketIO(app)
 
+@app.route('/api/data', methods=['GET'])
+def get_data():
+    return jsonify({"message": "This is a REST API response."})
 
-@app.route('/api/hello', methods=['GET'])
-def hello():
-    return jsonify({"message": "Hello, this is a REST API endpoint!"})
+@socketio.on('connect', namespace='/socket')
+def handle_connect():
+    print("Client connected via Socket.IO")
+    emit('response', {'message': 'Connected to Socket.IO!'})
 
-@app.route('/api/data', methods=['POST'])
-def receive_data():
-    data = request.json
-    return jsonify({"received": data, "status": "success"})
-
-@sockets.route('/socket')
-def echo_socket(ws):
-    print("A client connected")
-    while not ws.closed:
-        message = ws.receive()
-        if message:
-            print(f"Received message: {message}")
-            ws.send(f"Echo: {message}")
+@socketio.on('disconnect', namespace='/socket')
+def handle_disconnect():
+    print("Client disconnected from Socket.IO")
 
 if __name__ == '__main__':
-    from gevent import pywsgi
-    from geventwebsocket.handler import WebSocketHandler
-
-    server = pywsgi.WSGIServer(('0.0.0.0', 5000), app, handler_class=WebSocketHandler)
-    print("Server running at http://127.0.0.1:5000")
-    server.serve_forever()
+    socketio.run(app, debug=True)
